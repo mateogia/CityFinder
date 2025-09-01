@@ -5,7 +5,6 @@
 //  Created by Mateo Giarrocco on 24/08/2025.
 //
 
-
 struct City: Identifiable {
     let country: String
     let name: String

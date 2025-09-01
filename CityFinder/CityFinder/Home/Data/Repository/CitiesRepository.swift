@@ -14,6 +14,6 @@ struct CitiesRepository: CitiesRepositoryProtocol {
     
     func fetchCities() async throws -> [City] {
         let citiesDTOs = try await dataSource.getCities()
-        return citiesDTOs.map { City(country: $0.country, name: $0.name, id: $0.id, lat: $0.coord.lat, long: $0.coord.lat) }
+        return citiesDTOs.map { City(country: $0.country, name: $0.name, id: $0.id, lat: $0.coord.lat, long: $0.coord.lon) }
     }
 }

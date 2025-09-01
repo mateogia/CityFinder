@@ -7,11 +7,13 @@
 
 import SwiftUI
 
-struct CitiesView: View {
-    @StateObject private var viewModel = CitiesViewModel()
+struct CitiesPortraitView: View {
+    @StateObject var viewModel: CitiesViewModel
+    //@State private var path = NavigationPath()
+    @State private var cityForMap: City? = nil
     
     var body: some View {
-        NavigationView {
+        NavigationStack() {
             Group {
                 VStack {
                     Text("Cities")
@@ -42,12 +44,7 @@ struct CitiesView: View {
                         ProgressView("Loading...")
                     } else if let errorMessage = viewModel.errorMessage {
                         Text("Error: \(errorMessage)")
-                    }
-                    /*else if viewModel.orderedCities.isEmpty && viewModel.showOnlyFavorites {
-                        Text("No hay favoritos")
-                            .foregroundStyle(.gray)
-                            .padding()
-                    }*/ else {
+                    } else {
                         VStack {
                             let textCount = viewModel.showOnlyFavorites ? viewModel.orderedCities.count : viewModel.cities.count
                             Text("Showing \(textCount) cities")
@@ -56,11 +53,11 @@ struct CitiesView: View {
                             ScrollView {
                                 LazyVStack {
                                     ForEach(viewModel.orderedCities) { city in
-                                        CityRowView(city: city, viewModel: viewModel)
+                                        CityRowView(city: city, viewModel: viewModel,/*
+                                                    onOpenDetail: { path.append(city) },*/
+                                                    onShowMap: { cityForMap = city }
+                                        )
                                     }
-                                    /*ForEach($viewModel.orderedcities) { $city in
-                                         CityRowView(city: $city, viewModel: viewModel)
-                                     }*/
                                 }
                             }
                             .onChange(of: viewModel.searchText) {
@@ -77,13 +74,13 @@ struct CitiesView: View {
                         
                     }
                 }
-                .onAppear {
+                /*.onAppear {
                     if viewModel.firstTime {
                         viewModel.fetchCities()
                     } else {
                         viewModel.filterCitiesBySearchText()
                     }
-                }
+                }*/
             }
         }
     }

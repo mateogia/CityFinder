@@ -9,17 +9,22 @@ import SwiftUI
 
 struct CityRowView: View {
     var city: City
-    //@Binding var city: City
     @ObservedObject var viewModel: CitiesViewModel
+    let onShowMap: () -> Void
     
     var body: some View {
         HStack {
-            VStack(alignment: .leading) {
-                Text("\(city.name), \(city.country)")
-                    .font(.headline)
-                Text("Coordinates: \(city.long), \(city.lat)")
-                    .font(.subheadline)
+            NavigationLink {
+                MapView(city: city)
+            } label: {
+                VStack(alignment: .leading) {
+                    Text("\(city.name), \(city.country)")
+                        .font(.headline)
+                    Text("Coordinates: \(city.long), \(city.lat)")
+                        .font(.subheadline)
+                }
             }
+            .buttonStyle(.plain)
             Spacer()
             Button {
                 viewModel.toggleFavorite(for: city)
@@ -28,6 +33,17 @@ struct CityRowView: View {
                     .foregroundColor(.yellow)
             }
             .buttonStyle(.plain)
+            NavigationLink {
+                DetailView(city: city)
+            } label: {
+                Text("Detail")
+                    .font(.subheadline).bold()
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 10)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
         }
+        .onTapGesture { onShowMap() }
     }
 }

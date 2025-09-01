@@ -18,11 +18,13 @@ class CitiesViewModel: ObservableObject {
     @Published var firstTime: Bool = true
     @Published var showOnlyFavorites: Bool = false
     @Published var orderedCities: [City] = []
+    private var favoriteIDs: Set<Int> = []
     
     private let repository: CitiesRepositoryProtocol
     
     init(repository: CitiesRepositoryProtocol = CitiesRepository()) {
         self.repository = repository
+        loadFavorites()
     }
     
     func fetchCities() {
@@ -32,6 +34,7 @@ class CitiesViewModel: ObservableObject {
                 let cities = try await repository.fetchCities()
                 self.cities = cities
                 self.allCities = cities
+                applyFavoritesToLoadedCities()
                 updateOrderedCities()
                 
             } catch {
@@ -63,6 +66,7 @@ class CitiesViewModel: ObservableObject {
         } else {
             cities = allCities
         }
+        updateOrderedCities() // borrar?
     }
     
     func toggleFavorite(for city: City) {
@@ -70,7 +74,65 @@ class CitiesViewModel: ObservableObject {
            let allcitiesIndex = allCities.firstIndex(where: { $0.id == city.id }) {
             cities[citiesIndex].isFavorite.toggle()
             allCities[allcitiesIndex].isFavorite.toggle()
+            //let idString = city.id
+            let nowFavorite = (cities.first(where: { $0.id == city.id })?.isFavorite ?? false)
+            if nowFavorite {
+                favoriteIDs.insert(city.id)
+            } else {
+                favoriteIDs.remove(city.id)
+            }
             updateOrderedCities()
+            saveFavorites()
         }
     }
+    
+    private func saveFavorites() {
+        let arr = Array(favoriteIDs)
+        UserDefaults.standard.set(arr, forKey: DefaultsKeys.favoriteCityIDs)
+    }
+    
+    private func loadFavorites() {
+        let stored = UserDefaults.standard.array(forKey: DefaultsKeys.favoriteCityIDs) ?? []
+        let ints: [Int] = stored.compactMap { item in
+            //if let i = item as? Int { return i }
+            if let num = item as? NSNumber { return num.intValue }
+            //if let s = item as? String, let v = Int(s) { return v }
+            return nil
+        }
+        favoriteIDs = Set(ints)
+        applyFavoritesToLoadedCities() // borrar?
+    }
+    
+    private func applyFavoritesToLoadedCities() { // borrar alguno?
+        if !allCities.isEmpty {
+            let newAll = allCities.map { city -> City in
+                var c = city
+                c.isFavorite = favoriteIDs.contains(c.id)
+                return c
+            }
+            allCities = newAll
+        }
+        
+        if !cities.isEmpty {
+            let newCities = cities.map { city -> City in
+                var c = city
+                c.isFavorite = favoriteIDs.contains(c.id)
+                return c
+            }
+            cities = newCities
+        }
+        
+        if !orderedCities.isEmpty {
+            let newOrdered = orderedCities.map { city -> City in
+                var c = city
+                c.isFavorite = favoriteIDs.contains(c.id)
+                return c
+            }
+            orderedCities = newOrdered
+        }
+    }
+}
+
+enum DefaultsKeys {
+    static let favoriteCityIDs = "favoriteCityIDs"
 }
