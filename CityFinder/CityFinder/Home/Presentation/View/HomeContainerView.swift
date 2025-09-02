@@ -21,19 +21,27 @@ struct HomeContainerView: View {
                     portraitLayout
                 }
             }
+            .onChange(of: isLandscape) {
+                viewModel.isLandscape.toggle()
+            }
             .onAppear {
                 if viewModel.firstTime {
                     viewModel.fetchCities()
                 } else {
                     viewModel.filterCitiesBySearchText()
                 }
+                if isLandscape {
+                    viewModel.setLandscapeMode()
+                }
             }
         }
     }
     var portraitLayout: some View {
-        CitiesPortraitView(viewModel: viewModel)
+        CitiesView(viewModel: viewModel)
+            .padding(5)
     }
     var landscapeLayout: some View {
-        CitiesPortraitView(viewModel: viewModel)
+        CitiesView(viewModel: viewModel)
+            .padding(5)
     }
 }

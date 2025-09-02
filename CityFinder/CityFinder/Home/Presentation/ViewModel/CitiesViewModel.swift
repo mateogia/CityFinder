@@ -19,6 +19,8 @@ class CitiesViewModel: ObservableObject {
     @Published var showOnlyFavorites: Bool = false
     @Published var orderedCities: [City] = []
     private var favoriteIDs: Set<Int> = []
+    @Published var isLandscape: Bool = false
+    @Published var cityForMap: City? = nil
     
     private let repository: CitiesRepositoryProtocol
     
@@ -66,7 +68,7 @@ class CitiesViewModel: ObservableObject {
         } else {
             cities = allCities
         }
-        updateOrderedCities() // borrar?
+        updateOrderedCities()
     }
     
     func toggleFavorite(for city: City) {
@@ -74,7 +76,6 @@ class CitiesViewModel: ObservableObject {
            let allcitiesIndex = allCities.firstIndex(where: { $0.id == city.id }) {
             cities[citiesIndex].isFavorite.toggle()
             allCities[allcitiesIndex].isFavorite.toggle()
-            //let idString = city.id
             let nowFavorite = (cities.first(where: { $0.id == city.id })?.isFavorite ?? false)
             if nowFavorite {
                 favoriteIDs.insert(city.id)
@@ -94,13 +95,11 @@ class CitiesViewModel: ObservableObject {
     private func loadFavorites() {
         let stored = UserDefaults.standard.array(forKey: DefaultsKeys.favoriteCityIDs) ?? []
         let ints: [Int] = stored.compactMap { item in
-            //if let i = item as? Int { return i }
             if let num = item as? NSNumber { return num.intValue }
-            //if let s = item as? String, let v = Int(s) { return v }
             return nil
         }
         favoriteIDs = Set(ints)
-        applyFavoritesToLoadedCities() // borrar?
+        applyFavoritesToLoadedCities()
     }
     
     private func applyFavoritesToLoadedCities() { // borrar alguno?
@@ -130,6 +129,22 @@ class CitiesViewModel: ObservableObject {
             }
             orderedCities = newOrdered
         }
+    }
+    
+    func setLandscapeMode() {
+        self.isLandscape = true
+    }
+    func showCityInMap(city: City) {
+        self.cityForMap = city
+    }
+    func getSelectedCity() -> City? {
+        return cityForMap
+    }
+    
+    // for testing
+    func setCities(cities: [City]) {
+        self.allCities = cities
+        updateOrderedCities()
     }
 }
 

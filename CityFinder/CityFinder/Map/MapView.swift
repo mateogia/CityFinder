@@ -9,32 +9,30 @@ import SwiftUI
 import MapKit
 
 struct MapView: View {
-    @State var city: City
-    //@State private var region: MKCoordinateRegion
+    let city: City
+    @State private var position: MapCameraPosition
 
     init(city: City) {
         self.city = city
-        let center = CLLocationCoordinate2D(latitude: city.lat, longitude: city.long)
-        /*_region = State(initialValue: MKCoordinateRegion(
-            center: center,
-            span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
-        ))*/
+        self._position = State(initialValue: .region(
+            MKCoordinateRegion(
+                center: CLLocationCoordinate2D(latitude: city.lat, longitude: city.long),
+                span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
+            )
+        ))
     }
     
     var body: some View {
-        Text("Mapa")
-        Text("\(city.name), \(city.country): \(city.long) \(city.lat)")
-        let center = CLLocationCoordinate2D(latitude: city.lat, longitude: city.long)
-        Map(initialPosition: .region(MKCoordinateRegion(
-            center: center,
-            span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
-        ))) {
-            Annotation(city.name, coordinate: center) {
-                Image(systemName: "mappin.circle.fill")
-                    .font(.title)
-            }
+        Map(position: $position) {
+            Marker(city.name, coordinate: CLLocationCoordinate2D(latitude: city.lat, longitude: city.long))
         }
-        .navigationTitle("Location")
-        .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: city.id) {
+            position = .region(
+                MKCoordinateRegion(
+                    center: CLLocationCoordinate2D(latitude: city.lat, longitude: city.long),
+                    span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
+                )
+            )
+        }
     }
 }
