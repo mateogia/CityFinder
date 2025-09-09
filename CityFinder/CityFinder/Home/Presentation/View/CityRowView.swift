@@ -9,33 +9,40 @@ import SwiftUI
 
 struct CityRowView: View {
     var city: City
-    @ObservedObject var viewModel: CitiesViewModel
+    let onToggleFavorite: () -> Void
     let isLandscape: Bool
-    @State var onShowMap: () -> Void
+    let onShowMap: () -> Void
+    @State private var animate = false
     
     var body: some View {
         HStack {
             if isLandscape {
-                rowInfo
-                    .onTapGesture { onShowMap() }
+                Button(action: onShowMap) {
+                    rowInfo
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(HighlightButtonStyle())
             } else {
                 NavigationLink {
                     MapView(city: city)
                 } label: {
                     rowInfo
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(HighlightButtonStyle())
             }
             Spacer()
+            
             Button {
-                viewModel.toggleFavorite(for: city)
+                onToggleFavorite()
             } label: {
                 Image(systemName: city.isFavorite ? "star.fill" : "star")
-                    .foregroundColor(.yellow)
+                    .foregroundColor(.blue)
             }
-            .buttonStyle(.plain)
+            .symbolEffect(.bounce, value: city.isFavorite)
+            .padding(.trailing, 8)
+            
             NavigationLink {
-                DetailView(city: city)
+                DetailView(city: city, onToggleFavorite: onToggleFavorite)
             } label: {
                 Text("Detail")
                     .font(.subheadline).bold()
@@ -43,16 +50,17 @@ struct CityRowView: View {
                     .padding(.horizontal, 10)
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(HighlightButtonStyle())
         }
+        .padding(.vertical, 6)
     }
     
     var rowInfo: some View {
         VStack(alignment: .leading) {
             Text("\(city.name), \(city.country)")
                 .font(.headline)
-            Text("Coordinates: \(city.long), \(city.lat)")
-                .font(.subheadline)
+            Text("Coordinates:\n\(city.long), \(city.lat)")
+                .font(.caption)
         }
     }
 }

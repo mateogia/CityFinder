@@ -15,13 +15,13 @@ struct CityDetailRepository: CityDetailRepositoryProtocol {
     
     func fetchCityDetail(for cityName: String) async throws -> CityDetail {
         let cityDetailDTOs = try await dataSource.getCityDetail(for: cityName)
-        /*let thumbnail = Thumbnail(source: cityDetailDTOs.thumbnail.source,
+        let thumbnail = Thumbnail(source: cityDetailDTOs.thumbnail.source,
                                   width: cityDetailDTOs.thumbnail.width,
-                                  height: cityDetailDTOs.thumbnail.height)*/
+                                  height: cityDetailDTOs.thumbnail.height)
         
         return CityDetail(title: cityDetailDTOs.title,
                           description: cityDetailDTOs.description,
-                          extract: cityDetailDTOs.extract)/*,
-                          thumbnail: thumbnail)*/
+                          extract: cityDetailDTOs.extract,
+                          thumbnail: thumbnail)
     }
 }

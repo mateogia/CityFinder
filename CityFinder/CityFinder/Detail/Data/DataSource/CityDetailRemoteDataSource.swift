@@ -26,9 +26,6 @@ struct CityDetailRemoteDataSource: CityDetailRemoteDataSourceProtocol {
         request.setValue("CityFinder/1.0", forHTTPHeaderField: "User-Agent")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         let (data, _) = try await URLSession.shared.data(for: request)
-        /*if let jsonString = String(data: data, encoding: .utf8) {
-            print("JSON recibido:\n\(jsonString)")
-        }*/
         let response = try JSONDecoder().decode(CityDetailApi.self, from: data)
         return response
     }

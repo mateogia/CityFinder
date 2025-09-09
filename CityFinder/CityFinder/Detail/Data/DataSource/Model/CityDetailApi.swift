@@ -11,7 +11,7 @@ struct CityDetailApi: Decodable {
     let title: String
     let description: String
     let extract: String
-    //let thumbnail: ThumbnailApi
+    let thumbnail: ThumbnailApi
 }
 
 struct ThumbnailApi: Decodable {

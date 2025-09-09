@@ -7,89 +7,97 @@
 
 import Foundation
 import SwiftUI
+import Combine
 
 @MainActor
 class CitiesViewModel: ObservableObject {
-    @Published var cities: [City] = []
-    @Published var isLoading: Bool = true
+    @Published private var cities: [City] = []
+    @Published var orderedCities: [City] = []
+    @Published var loadingState: LoadingState<[City]> = .idle
     @Published var errorMessage: String? = nil
     @Published var searchText: String = ""
-    @Published var allCities: [City] = []
-    @Published var firstTime: Bool = true
     @Published var showOnlyFavorites: Bool = false
-    @Published var orderedCities: [City] = []
     private var favoriteIDs: Set<Int> = []
-    @Published var isLandscape: Bool = false
-    @Published var cityForMap: City? = nil
-    
     private let repository: CitiesRepositoryProtocol
+    private var cancellables = Set<AnyCancellable>()
+    private let searchDebounceInterval: TimeInterval
+    var citiesCountDescription: String {
+        return showOnlyFavorites ? "Showing \(orderedCities.count) favorite cities" : "Showing \(orderedCities.count) cities"
+    }
     
-    init(repository: CitiesRepositoryProtocol = CitiesRepository()) {
+    init(repository: CitiesRepositoryProtocol = CitiesRepository(), searchDebounceInterval: TimeInterval = 0.30) {
         self.repository = repository
+        self.searchDebounceInterval = searchDebounceInterval
         loadFavorites()
+        setupBindings()
     }
     
-    func fetchCities() {
-        isLoading = true
-        Task {
-            do {
-                let cities = try await repository.fetchCities()
-                self.cities = cities
-                self.allCities = cities
-                applyFavoritesToLoadedCities()
-                updateOrderedCities()
-                
-            } catch {
-                self.errorMessage = error.localizedDescription
-            }
-            isLoading = false
+    func fetchCities() async {
+        loadingState = .loading
+        do {
+            let cities = try await repository.fetchCities()
+            self.cities = cities
+            applyFavoritesToLoadedCities()
+            filterAndSortCities(cities: cities, searchText: searchText, showOnlyFavorites: showOnlyFavorites)
+            loadingState = .success(cities)
+        } catch {
+            self.errorMessage = error.localizedDescription
+            loadingState = .failure(error)
         }
-        firstTime = false
     }
     
-    func updateOrderedCities() {
+    func filterAndSortCities(cities: [City], searchText: String, showOnlyFavorites: Bool) -> [City] {
         var result = cities
         if showOnlyFavorites {
             result = result.filter { $0.isFavorite }
-        } else {
-            result = cities
         }
-        orderedCities = result.sorted {
+        if !searchText.isEmpty {
+            result = result.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+        }
+        return result.sorted {
             ($0.name, $0.country) < ($1.name, $1.country)
         }
     }
     
-    func filterCitiesBySearchText() {
-        cities = allCities
-        if !searchText.isEmpty {
-            cities = cities.filter { city in
-                city.name.localizedCaseInsensitiveContains(searchText)
+    private func setupBindings() {
+        let searchPublisher = $searchText
+            .debounce(for: .milliseconds(Int(searchDebounceInterval * 1000)), scheduler: RunLoop.main)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .removeDuplicates()
+            .eraseToAnyPublisher()
+        Publishers.CombineLatest3($cities, searchPublisher, $showOnlyFavorites)
+            .receive(on: DispatchQueue.global(qos: .userInitiated))
+            .map { [weak self] citiesP, searchTextP, showOnlyFavsP -> [City] in
+                guard let self = self else { return [] }
+                let result = self.filterAndSortCities(cities: citiesP, searchText: searchTextP, showOnlyFavorites: showOnlyFavsP)
+                return result
             }
-        } else {
-            cities = allCities
-        }
-        updateOrderedCities()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] result in
+                self?.orderedCities = result
+            }
+            .store(in: &cancellables)
     }
     
     func toggleFavorite(for city: City) {
-        if let citiesIndex = cities.firstIndex(where: { $0.id == city.id }),
-           let allcitiesIndex = allCities.firstIndex(where: { $0.id == city.id }) {
-            cities[citiesIndex].isFavorite.toggle()
-            allCities[allcitiesIndex].isFavorite.toggle()
-            let nowFavorite = (cities.first(where: { $0.id == city.id })?.isFavorite ?? false)
-            if nowFavorite {
-                favoriteIDs.insert(city.id)
+        if let index = cities.firstIndex(where: { $0.id == city.id }) {
+            var newCities = cities
+            newCities[index].isFavorite.toggle()
+            cities = newCities
+            if newCities[index].isFavorite {
+                favoriteIDs.insert(cities[index].id)
             } else {
-                favoriteIDs.remove(city.id)
+                favoriteIDs.remove(cities[index].id)
             }
-            updateOrderedCities()
-            saveFavorites()
+            self.saveFavorites()
+            orderedCities = filterAndSortCities(cities: self.cities,
+                                                         searchText: self.searchText,
+                                                         showOnlyFavorites: self.showOnlyFavorites)
         }
     }
     
     private func saveFavorites() {
-        let arr = Array(favoriteIDs)
-        UserDefaults.standard.set(arr, forKey: DefaultsKeys.favoriteCityIDs)
+        UserDefaults.standard.set(Array(favoriteIDs), forKey: DefaultsKeys.favoriteCityIDs)
     }
     
     private func loadFavorites() {
@@ -99,52 +107,23 @@ class CitiesViewModel: ObservableObject {
             return nil
         }
         favoriteIDs = Set(ints)
-        applyFavoritesToLoadedCities()
     }
     
-    private func applyFavoritesToLoadedCities() { // borrar alguno?
-        if !allCities.isEmpty {
-            let newAll = allCities.map { city -> City in
-                var c = city
-                c.isFavorite = favoriteIDs.contains(c.id)
-                return c
-            }
-            allCities = newAll
-        }
-        
-        if !cities.isEmpty {
-            let newCities = cities.map { city -> City in
-                var c = city
-                c.isFavorite = favoriteIDs.contains(c.id)
-                return c
-            }
-            cities = newCities
-        }
-        
-        if !orderedCities.isEmpty {
-            let newOrdered = orderedCities.map { city -> City in
-                var c = city
-                c.isFavorite = favoriteIDs.contains(c.id)
-                return c
-            }
-            orderedCities = newOrdered
+    private func applyFavoritesToLoadedCities() {
+        cities = cities.map { city in
+            var mutableCity = city
+            mutableCity.isFavorite = favoriteIDs.contains(mutableCity.id)
+            return mutableCity
         }
     }
     
-    func setLandscapeMode() {
-        self.isLandscape = true
-    }
-    func showCityInMap(city: City) {
-        self.cityForMap = city
-    }
-    func getSelectedCity() -> City? {
-        return cityForMap
-    }
-    
-    // for testing
+    // for testing:
     func setCities(cities: [City]) {
-        self.allCities = cities
-        updateOrderedCities()
+        self.cities = cities
+        applyFavoritesToLoadedCities()
+        self.orderedCities = filterAndSortCities(cities: self.cities,
+                                                 searchText: self.searchText,
+                                                 showOnlyFavorites: self.showOnlyFavorites)
     }
 }
 

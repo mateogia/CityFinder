@@ -8,7 +8,7 @@ import SwiftUI
 @MainActor
 class CityDetailViewModel: ObservableObject {
     @Published var cityDetail: CityDetail?
-    @Published var isLoading: Bool = true
+    @Published var loadingState: LoadingState<CityDetail> = .idle
     @Published var errorMessage: String? = nil
     
     private let repository: CityDetailRepositoryProtocol
@@ -17,15 +17,16 @@ class CityDetailViewModel: ObservableObject {
         self.repository = repository
     }
     
-    func fetchCityDetail(for cityName: String) {
-        isLoading = true
-        Task {
-            do {
-                self.cityDetail = try await repository.fetchCityDetail(for: cityName)
-            } catch {
-                self.errorMessage = error.localizedDescription
+    func fetchCityDetail(for cityName: String) async {
+        loadingState = .loading
+        do {
+            self.cityDetail = try await repository.fetchCityDetail(for: cityName)
+            if let detail = cityDetail {
+                loadingState = .success(detail)
             }
-            isLoading = false
+        } catch {
+            self.errorMessage = error.localizedDescription
+            loadingState = .failure(error)
         }
     }
 }

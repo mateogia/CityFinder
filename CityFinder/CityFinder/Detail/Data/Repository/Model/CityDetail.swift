@@ -11,7 +11,7 @@ struct CityDetail {
     let title: String
     let description: String
     let extract: String
-    //let thumbnail: Thumbnail?
+    let thumbnail: Thumbnail?
 }
 
 struct Thumbnail {
