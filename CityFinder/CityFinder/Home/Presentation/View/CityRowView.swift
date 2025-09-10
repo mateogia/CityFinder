@@ -40,9 +40,9 @@ struct CityRowView: View {
             }
             .symbolEffect(.bounce, value: city.isFavorite)
             .padding(.trailing, 8)
-            
+            .accessibilityIdentifier("favoriteButton_\(city.id)")
             NavigationLink {
-                DetailView(city: city, onToggleFavorite: onToggleFavorite)
+                DetailScreen(city: city, onToggleFavorite: onToggleFavorite)
             } label: {
                 Text("Detail")
                     .font(.subheadline).bold()
@@ -51,7 +51,9 @@ struct CityRowView: View {
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
             }
             .buttonStyle(HighlightButtonStyle())
+            .accessibilityIdentifier("detailButton_\(city.id)")
         }
+        .accessibilityIdentifier("cityRow_\(city.id)")
         .padding(.vertical, 6)
     }
     
@@ -59,7 +61,7 @@ struct CityRowView: View {
         VStack(alignment: .leading) {
             Text("\(city.name), \(city.country)")
                 .font(.headline)
-            Text("Coordinates:\n\(city.long), \(city.lat)")
+            Text("Coordinates:\n\(city.lat), \(city.long)")
                 .font(.caption)
         }
     }

@@ -7,13 +7,32 @@
 import Foundation
 
 struct CitiesRemoteDataSource: CitiesRemoteDataSourceProtocol {
+    private let session: URLSession
+    private let configuration: AppConfiguration
+    
+    init(session: URLSession = .shared, configuration: AppConfiguration = .shared) {
+        self.session = session
+        self.configuration = configuration
+    }
+    
     func getCities() async throws -> [CityApi] {
-        guard let url = URL(string: "https://gist.githubusercontent.com/hernan-uala/dce8843a8edbe0b0018b32e137bc2b3a/raw/0996accf70cb0ca0e16f9a99e0ee185fafca7af1/cities.json") else {
-            throw URLError(.badURL)
+        guard let url = URL(string: configuration.citiesAPIUrl) else {
+            throw AppError.invalidURL
         }
-        
-        let (data, _) = try await URLSession.shared.data(from: url)
-        let response = try JSONDecoder().decode([CityApi].self, from: data)
-        return response
+        do {
+            let (data, response) = try await session.data(from: url)
+            if let error = NetworkErrorHandler.handle(response) {
+                throw error
+            }
+            guard !data.isEmpty else {
+                throw AppError.invalidResponse
+            }
+            let decodedResponse = try JSONDecoder().decode([CityApi].self, from: data)
+            return decodedResponse
+        } catch let error as AppError {
+            throw error
+        } catch {
+            throw NetworkErrorHandler.handle(error)
+        }
     }
 }

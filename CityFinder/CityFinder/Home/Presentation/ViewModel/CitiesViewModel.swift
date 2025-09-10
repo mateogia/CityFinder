@@ -24,6 +24,15 @@ class CitiesViewModel: ObservableObject {
     var citiesCountDescription: String {
         return showOnlyFavorites ? "Showing \(orderedCities.count) favorite cities" : "Showing \(orderedCities.count) cities"
     }
+    var hasLoadedCities: Bool {
+        return !cities.isEmpty
+    }
+    var shouldShowNoResults: Bool {
+        if case .success = loadingState {
+            return hasLoadedCities && orderedCities.isEmpty
+        }
+        return false
+    }
     
     init(repository: CitiesRepositoryProtocol = CitiesRepository(), searchDebounceInterval: TimeInterval = 0.30) {
         self.repository = repository
@@ -38,7 +47,6 @@ class CitiesViewModel: ObservableObject {
             let cities = try await repository.fetchCities()
             self.cities = cities
             applyFavoritesToLoadedCities()
-            filterAndSortCities(cities: cities, searchText: searchText, showOnlyFavorites: showOnlyFavorites)
             loadingState = .success(cities)
         } catch {
             self.errorMessage = error.localizedDescription
@@ -63,14 +71,12 @@ class CitiesViewModel: ObservableObject {
         let searchPublisher = $searchText
             .debounce(for: .milliseconds(Int(searchDebounceInterval * 1000)), scheduler: RunLoop.main)
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .removeDuplicates()
             .eraseToAnyPublisher()
+            
         Publishers.CombineLatest3($cities, searchPublisher, $showOnlyFavorites)
-            .receive(on: DispatchQueue.global(qos: .userInitiated))
             .map { [weak self] citiesP, searchTextP, showOnlyFavsP -> [City] in
                 guard let self = self else { return [] }
-                let result = self.filterAndSortCities(cities: citiesP, searchText: searchTextP, showOnlyFavorites: showOnlyFavsP)
-                return result
+                return self.filterAndSortCities(cities: citiesP, searchText: searchTextP, showOnlyFavorites: showOnlyFavsP)
             }
             .receive(on: RunLoop.main)
             .sink { [weak self] result in
@@ -81,18 +87,15 @@ class CitiesViewModel: ObservableObject {
     
     func toggleFavorite(for city: City) {
         if let index = cities.firstIndex(where: { $0.id == city.id }) {
-            var newCities = cities
-            newCities[index].isFavorite.toggle()
-            cities = newCities
-            if newCities[index].isFavorite {
+            cities[index].isFavorite.toggle()
+            if cities[index].isFavorite {
                 favoriteIDs.insert(cities[index].id)
             } else {
                 favoriteIDs.remove(cities[index].id)
             }
-            self.saveFavorites()
-            orderedCities = filterAndSortCities(cities: self.cities,
-                                                         searchText: self.searchText,
-                                                         showOnlyFavorites: self.showOnlyFavorites)
+            Task {
+                self.saveFavorites()
+            }
         }
     }
     
@@ -120,7 +123,11 @@ class CitiesViewModel: ObservableObject {
     // for testing:
     func setCities(cities: [City]) {
         self.cities = cities
-        applyFavoritesToLoadedCities()
+        self.orderedCities = filterAndSortCities(cities: self.cities,
+                                                 searchText: self.searchText,
+                                                 showOnlyFavorites: self.showOnlyFavorites)
+    }
+    func refreshOrderedCities() {
         self.orderedCities = filterAndSortCities(cities: self.cities,
                                                  searchText: self.searchText,
                                                  showOnlyFavorites: self.showOnlyFavorites)

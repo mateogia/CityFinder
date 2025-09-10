@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct DetailView: View {
+struct DetailScreen: View {
     let city: City
     let onToggleFavorite: () -> Void
     @StateObject private var viewModel = CityDetailViewModel()
@@ -11,30 +11,66 @@ struct DetailView: View {
                 if let thumbnail = viewModel.cityDetail?.thumbnail, let imageURL = URL(string: thumbnail.source) {
                     AsyncImage(url: imageURL) { phase in
                         if case .success(let image) = phase {
-                            RoundedRectangle(cornerRadius: 16)
-                                .frame(height: 200)
-                                .frame(maxWidth: .infinity)
-                                .overlay(
-                                    image
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                )
-                                .clipped()
+                            ZStack {
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(minHeight: 150, maxHeight: 300)
+                                    .blur(radius: 20, opaque: true)
+                                    .clipped()
+                                image
+                                    .resizable()
+                                    .frame(minHeight: 150, maxHeight: 300)
+                                    .aspectRatio(contentMode: .fit)
+                            }
                         }
                     }
                 } else {
                     Image(systemName: "photo.on.rectangle.angled")
                         .font(.largeTitle)
                         .foregroundStyle(.secondary)
-                        .frame(height: 200)
+                        .frame(minHeight: 150, maxHeight: 300)
                         .frame(maxWidth: .infinity)
                         .background(Color(.systemGray6))
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                 }
             }
-            if case .loading = viewModel.loadingState {
-                ProgressView("Loading cities...")
-            } else {
+            .padding(.bottom, 10)
+            switch viewModel.loadingState {
+            case .loading:
+                VStack(spacing: 16) {
+                    ProgressView()
+                    Text("Loading city details...")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case .failure(let error):
+                if let appError = error as? AppError, case .serverError(404) = appError {
+                    ContentUnavailableView(
+                        "Información no Disponible",
+                        systemImage: "doc.text.magnifyingglass",
+                        description: Text("No se encontraron detalles para esta ciudad en Wikipedia.")
+                    )
+                } else {
+                    VStack(spacing: 16) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 50))
+                            .foregroundStyle(.red)
+                        Text("Failed to load details")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                        if let errorMessage = viewModel.errorMessage {
+                            Text(errorMessage)
+                                .font(.body)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            case .success, .idle:
                 VStack(alignment: .center, spacing: 4) {
                     Text(viewModel.cityDetail?.title ?? city.name)
                         .font(.largeTitle)
@@ -43,6 +79,7 @@ struct DetailView: View {
                         .font(.headline)
                         .foregroundStyle(.secondary)
                 }
+                .padding(.top, 15)
                 Text(viewModel.cityDetail?.extract ?? "No additional information available")
                     .font(.body)
                     .padding(.top, 10)
@@ -69,7 +106,7 @@ struct DetailView: View {
                 .symbolEffect(.bounce, value: city.isFavorite)
             }
         }
-        .task {
+        .task(id: city.id) {
             await viewModel.fetchCityDetail(for: city.name)
         }
     }

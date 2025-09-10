@@ -25,12 +25,20 @@ struct HeaderView: View {
                 TextField("Find a city here", text: $viewModel.searchText)
                     .focused($isSearchFocused)
                     .disableAutocorrection(true)
+                    .textInputAutocapitalization(.never)
                     .padding(.horizontal, 10)
+                    .onTapGesture {
+                        DispatchQueue.main.async {
+                            isSearchFocused = true
+                        }
+                    }
+                    .accessibilityIdentifier("searchTextField")
             }
             .frame(height: 44)
             Toggle("Show favorites only", isOn: $viewModel.showOnlyFavorites)
                 .padding(.vertical, 5)
                 .tint(.blue)
+                .accessibilityIdentifier("favoritesToggle")
             
             switch viewModel.loadingState {
             case .failure(let errorMessage):

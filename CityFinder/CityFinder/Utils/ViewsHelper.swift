@@ -4,6 +4,7 @@
 //
 //  Created by Mateo Giarrocco on 08/09/2025.
 //
+
 import SwiftUI
 
 enum LoadingState<Value> {
@@ -31,8 +32,10 @@ extension View {
         self.modifier(PrewarmKeyboardModifier())
     }
 }
+
 struct PrewarmKeyboardModifier: ViewModifier {
     @FocusState private var isPrewarmFieldFocused: Bool
+    @State private var hasPrewarmed = false
     
     func body(content: Content) -> some View {
         content
@@ -40,11 +43,23 @@ struct PrewarmKeyboardModifier: ViewModifier {
                 TextField("", text: .constant(""))
                     .focused($isPrewarmFieldFocused)
                     .allowsHitTesting(false)
-                    .frame(width: 0, height: 0) // no aparece
+                    .frame(width: 0, height: 0)
+                    .opacity(0)
             )
             .onAppear {
-                isPrewarmFieldFocused = true
-                isPrewarmFieldFocused = false
+                if !hasPrewarmed {
+                    prewarmKeyboard()
+                }
             }
+    }
+    
+    private func prewarmKeyboard() {
+        DispatchQueue.main.async {
+            isPrewarmFieldFocused = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                isPrewarmFieldFocused = false
+                hasPrewarmed = true
+            }
+        }
     }
 }

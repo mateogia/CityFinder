@@ -8,6 +8,13 @@
 import Foundation
 
 struct CityDetailRemoteDataSource: CityDetailRemoteDataSourceProtocol {
+    private let session: URLSession
+    private let configuration: AppConfiguration
+    
+    init(session: URLSession = .shared, configuration: AppConfiguration = .shared) {
+        self.session = session
+        self.configuration = configuration
+    }
     
     func getCityDetail(for cityName: String) async throws -> CityDetailApi {
         let cityNameNormalized = cityName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -16,17 +23,31 @@ struct CityDetailRemoteDataSource: CityDetailRemoteDataSourceProtocol {
         let formatted = cityNameNormalized.prefix(1).uppercased() + cityNameNormalized.dropFirst()
 
         guard let encoded = formatted.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else {
-            throw URLError(.badURL)
+            throw AppError.invalidURL
         }
-        let urlString = "https://es.wikipedia.org/api/rest_v1/page/summary/\(encoded)"
+        
+        let urlString = "\(configuration.cityDetailAPIUrl)\(encoded)"
         guard let url = URL(string: urlString) else {
-            throw URLError(.badURL)
+            throw AppError.invalidURL
         }
         var request = URLRequest(url: url)
         request.setValue("CityFinder/1.0", forHTTPHeaderField: "User-Agent")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        let (data, _) = try await URLSession.shared.data(for: request)
-        let response = try JSONDecoder().decode(CityDetailApi.self, from: data)
-        return response
+        
+        do {
+            let (data, response) = try await session.data(for: request)
+            if let error = NetworkErrorHandler.handle(response) {
+                throw error
+            }
+            guard !data.isEmpty else {
+                throw AppError.invalidResponse
+            }
+            let decodedResponse = try JSONDecoder().decode(CityDetailApi.self, from: data)
+            return decodedResponse
+        } catch let error as AppError {
+            throw error
+        } catch {
+            throw NetworkErrorHandler.handle(error)
+        }
     }
 }

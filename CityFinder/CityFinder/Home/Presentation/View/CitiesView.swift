@@ -9,6 +9,7 @@ import SwiftUI
 
 struct CitiesView: View {
     @ObservedObject var viewModel: CitiesViewModel
+    @StateObject private var detailViewModel = CityDetailViewModel()
     let isLandscape: Bool
     @State var cityForMap: City? = nil
     @FocusState private var isSearchFocused: Bool
@@ -19,23 +20,22 @@ struct CitiesView: View {
                 VStack {
                     HeaderView(isLandscape: isLandscape, viewModel: viewModel)
                     Spacer()
-                    if case .success = viewModel.loadingState {
-                        if !viewModel.orderedCities.isEmpty {
-                            listView
-                        } else {
-                            ContentUnavailableView(
-                                "No cities found",
-                                systemImage: "magnifyingglass",
-                                description: Text("\nSearch for a different city or turn off the 'favorites' toggle"))
-                            .background(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .fill(Color.blue.opacity(0.3))
-                            )
-                            .multilineTextAlignment(.center)
-                            .padding(.all, 10)
-                            
-                        }
+                if case .success = viewModel.loadingState {
+                    if !viewModel.orderedCities.isEmpty {
+                        listView
+                    } else if viewModel.shouldShowNoResults {
+                        ContentUnavailableView(
+                            "No cities found",
+                            systemImage: "magnifyingglass",
+                            description: Text("\nSearch for a different city or turn off the 'favorites' toggle"))
+                        .background(
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(Color.blue.opacity(0.3))
+                        )
+                        .multilineTextAlignment(.center)
+                        .padding(.all, 10)
                     }
+                }
                 }
                 .padding(10)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -62,7 +62,7 @@ struct CitiesView: View {
                 if case .success = viewModel.loadingState {
                     if !viewModel.orderedCities.isEmpty {
                         listView
-                    } else {
+                    } else if viewModel.shouldShowNoResults {
                         ContentUnavailableView(
                             "No cities found",
                             systemImage: "magnifyingglass",
@@ -75,6 +75,7 @@ struct CitiesView: View {
         }
     }
 
+    
     var listView: some View {
         ScrollView {
             LazyVStack {

@@ -24,6 +24,11 @@ struct HomeScreen: View {
                 }
             }
         }
-        .prewarmKeyboard() // para que permita tipear rápidamente al aparecer la vista por primera vez
+        .prewarmKeyboard() // para que permita tipear instantaneamente al aparecer la vista por primera vez
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                NotificationCenter.default.post(name: UIResponder.keyboardDidShowNotification, object: nil)
+            }
+        }
     }
 }

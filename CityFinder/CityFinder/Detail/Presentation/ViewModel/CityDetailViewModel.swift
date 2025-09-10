@@ -19,14 +19,21 @@ class CityDetailViewModel: ObservableObject {
     
     func fetchCityDetail(for cityName: String) async {
         loadingState = .loading
+        errorMessage = nil        
         do {
-            self.cityDetail = try await repository.fetchCityDetail(for: cityName)
-            if let detail = cityDetail {
-                loadingState = .success(detail)
-            }
+            let detail = try await repository.fetchCityDetail(for: cityName)
+            self.cityDetail = detail
+            loadingState = .success(detail)
         } catch {
-            self.errorMessage = error.localizedDescription
+            self.errorMessage = getErrorMessage(for: error)
             loadingState = .failure(error)
         }
+    }
+    
+    private func getErrorMessage(for error: Error) -> String {
+        if let appError = error as? AppError {
+            return appError.errorDescription ?? "Unknown error occurred"
+        }
+        return error.localizedDescription
     }
 }
